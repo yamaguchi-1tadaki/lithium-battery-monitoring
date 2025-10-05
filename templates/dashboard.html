@@ -1,0 +1,759 @@
+{% extends "base.html" %}
+
+{% block title %}ダッシュボード - リチウムイオンバッテリー監視システム{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-tachometer-alt me-2"></i>リアルタイムダッシュボード</h2>
+    <div class="d-flex gap-2">
+        <button id="refreshBtn" class="btn btn-outline-primary">
+            <i class="fas fa-sync-alt me-1"></i>更新
+        </button>
+        <button id="autoRefreshBtn" class="btn btn-outline-secondary" data-auto="false">
+            <i class="fas fa-play me-1"></i>自動更新
+        </button>
+    </div>
+</div>
+
+<!-- システムステータス概要 -->
+<section id="overview" class="mb-5">
+    <div class="row g-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card metric-card bg-primary text-white">
+                <div class="card-body">
+                    <i class="fas fa-battery-full fa-2x mb-3"></i>
+                    <div class="metric-value" id="totalBatteries">-</div>
+                    <div class="metric-label">総バッテリー数</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="card metric-card bg-success text-white">
+                <div class="card-body">
+                    <i class="fas fa-check-circle fa-2x mb-3"></i>
+                    <div class="metric-value" id="normalBatteries">-</div>
+                    <div class="metric-label">正常</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="card metric-card bg-warning text-white">
+                <div class="card-body">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                    <div class="metric-value" id="warningBatteries">-</div>
+                    <div class="metric-label">警告</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="card metric-card bg-danger text-white">
+                <div class="card-body">
+                    <i class="fas fa-times-circle fa-2x mb-3"></i>
+                    <div class="metric-value" id="criticalBatteries">-</div>
+                    <div class="metric-label">危険</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- バッテリー一覧 -->
+<section id="batteries" class="mb-5">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-battery-full me-2"></i>バッテリー一覧</h5>
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="realTimeToggle" checked>
+                <label class="form-check-label" for="realTimeToggle">
+                    リアルタイム更新
+                </label>
+            </div>
+        </div>
+        <div class="card-body">
+            <div id="batteriesContainer" class="row g-3">
+                <!-- バッテリーカードがここに動的に追加される -->
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 選択したバッテリーの詳細監視 -->
+<section id="monitoring" class="mb-5" style="display: none;">
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-chart-line me-2"></i>
+                リアルタイム監視: <span id="selectedBatteryId">-</span>
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <!-- リアルタイムメトリクス -->
+                <div class="col-md-3">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">電圧</h6>
+                            <div class="h3 text-primary" id="currentVoltage">-</div>
+                            <small class="text-muted">V</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">電流</h6>
+                            <div class="h3 text-info" id="currentCurrent">-</div>
+                            <small class="text-muted">A</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">温度</h6>
+                            <div class="h3 text-warning" id="currentTemperature">-</div>
+                            <small class="text-muted">°C</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">容量</h6>
+                            <div class="h3 text-success" id="currentCapacity">-</div>
+                            <small class="text-muted">%</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- チャート表示 -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <canvas id="voltageChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <canvas id="temperatureChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <canvas id="currentChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <canvas id="capacityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- AI予測結果 -->
+<section id="analytics" class="mb-5">
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-brain me-2"></i>AI予測分析</h5>
+        </div>
+        <div class="card-body">
+            <div id="predictionContainer">
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-mouse-pointer fa-3x mb-3"></i>
+                    <p>バッテリーを選択してAI予測分析を表示</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- アクティブアラート -->
+<section id="alerts" class="mb-5">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>アクティブアラート</h5>
+            <button id="refreshAlertsBtn" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+        </div>
+        <div class="card-body">
+            <div id="alertsContainer">
+                <!-- アラートがここに動的に追加される -->
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // ダッシュボード専用JavaScript
+    let selectedBatteryId = null;
+    let autoRefreshInterval = null;
+    let isAutoRefresh = false;
+    
+    // チャート設定
+    const chartConfigs = {
+        voltage: {
+            label: '電圧 (V)',
+            borderColor: 'rgb(59, 130, 246)',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            yAxisMin: 3.0,
+            yAxisMax: 4.5
+        },
+        current: {
+            label: '電流 (A)', 
+            borderColor: 'rgb(34, 197, 94)',
+            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+            yAxisMin: -3.0,
+            yAxisMax: 3.0
+        },
+        temperature: {
+            label: '温度 (°C)',
+            borderColor: 'rgb(249, 115, 22)',
+            backgroundColor: 'rgba(249, 115, 22, 0.1)',
+            yAxisMin: 0,
+            yAxisMax: 80
+        },
+        capacity: {
+            label: '容量 (%)',
+            borderColor: 'rgb(16, 185, 129)',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            yAxisMin: 0,
+            yAxisMax: 100
+        }
+    };
+    
+    // 初期化
+    document.addEventListener('DOMContentLoaded', function() {
+        loadDashboardData();
+        
+        // イベントリスナー設定
+        setupEventListeners();
+        
+        // SocketIOイベント設定
+        setupSocketIOEvents();
+        
+        // 初期チャート作成
+        initializeCharts();
+    });
+    
+    // イベントリスナー設定
+    function setupEventListeners() {
+        document.getElementById('refreshBtn').addEventListener('click', loadDashboardData);
+        
+        document.getElementById('autoRefreshBtn').addEventListener('click', toggleAutoRefresh);
+        
+        document.getElementById('refreshAlertsBtn').addEventListener('click', loadAlerts);
+        
+        document.getElementById('realTimeToggle').addEventListener('change', function() {
+            if (this.checked) {
+                startRealTimeUpdates();
+            } else {
+                stopRealTimeUpdates();
+            }
+        });
+    }
+    
+    // SocketIOイベント設定
+    function setupSocketIOEvents() {
+        if (socket) {
+            // センサーデータ受信
+            socket.on('sensor_data', function(data) {
+                if (document.getElementById('realTimeToggle').checked) {
+                    updateRealTimeData(data);
+                }
+            });
+            
+            // 予測結果受信
+            socket.on('prediction_result', function(data) {
+                updatePredictionDisplay(data);
+            });
+        }
+    }
+    
+    // ダッシュボードデータ読み込み
+    async function loadDashboardData() {
+        try {
+            showLoadingSpinner(true);
+            
+            // 並列でデータ取得
+            const [batteriesData, systemStatus] = await Promise.all([
+                apiCall('/api/batteries'),
+                apiCall('/api/system/status')
+            ]);
+            
+            // データ更新
+            updateOverviewMetrics(batteriesData.batteries);
+            updateBatteriesList(batteriesData.batteries);
+            updateSystemStatus(systemStatus.system_status);
+            
+            // アラート取得
+            await loadAlerts();
+            
+        } catch (error) {
+            console.error('ダッシュボードデータ読み込みエラー:', error);
+        } finally {
+            showLoadingSpinner(false);
+        }
+    }
+    
+    // 概要メトリクス更新
+    function updateOverviewMetrics(batteries) {
+        const metrics = {
+            total: batteries.length,
+            normal: batteries.filter(b => b.risk_level === 'normal').length,
+            warning: batteries.filter(b => b.risk_level === 'warning').length,
+            critical: batteries.filter(b => ['critical', 'danger'].includes(b.risk_level)).length
+        };
+        
+        document.getElementById('totalBatteries').textContent = metrics.total;
+        document.getElementById('normalBatteries').textContent = metrics.normal;
+        document.getElementById('warningBatteries').textContent = metrics.warning;
+        document.getElementById('criticalBatteries').textContent = metrics.critical;
+    }
+    
+    // バッテリー一覧更新
+    function updateBatteriesList(batteries) {
+        const container = document.getElementById('batteriesContainer');
+        
+        container.innerHTML = batteries.map(battery => `
+            <div class="col-xl-4 col-md-6">
+                <div class="card battery-card h-100" onclick="selectBattery('${battery.battery_id}')">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <h6 class="card-title mb-1">${battery.battery_id}</h6>
+                                <small class="text-muted">${battery.model}</small>
+                            </div>
+                            <span class="badge bg-${getRiskLevelColor(battery.risk_level)}">
+                                ${battery.risk_level}
+                            </span>
+                        </div>
+                        
+                        <div class="row g-2 text-center">
+                            <div class="col-6">
+                                <div class="border rounded p-2">
+                                    <div class="fw-bold text-primary">${formatNumber(battery.latest_data.voltage)}V</div>
+                                    <small class="text-muted">電圧</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="border rounded p-2">
+                                    <div class="fw-bold text-warning">${formatNumber(battery.latest_data.temperature)}°C</div>
+                                    <small class="text-muted">温度</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="border rounded p-2">
+                                    <div class="fw-bold text-info">${formatNumber(battery.latest_data.current)}A</div>
+                                    <small class="text-muted">電流</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="border rounded p-2">
+                                    <div class="fw-bold text-success">${formatNumber(battery.latest_data.capacity)}%</div>
+                                    <small class="text-muted">容量</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <small class="text-muted">健康スコア</small>
+                                <small class="fw-bold">${formatNumber(battery.health_score)}点</small>
+                            </div>
+                            <div class="progress" style="height: 6px;">
+                                <div class="progress-bar bg-${getHealthScoreColor(battery.health_score)}" 
+                                     style="width: ${battery.health_score || 0}%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <small class="text-muted">
+                                <i class="fas fa-map-marker-alt me-1"></i>${battery.location}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    // バッテリー選択
+    async function selectBattery(batteryId) {
+        selectedBatteryId = batteryId;
+        
+        // UI更新
+        document.getElementById('selectedBatteryId').textContent = batteryId;
+        document.getElementById('monitoring').style.display = 'block';
+        
+        // データ取得と表示
+        await loadBatteryData(batteryId);
+        await loadBatteryPrediction(batteryId);
+        
+        // SocketIOでバッテリー監視開始
+        if (socket) {
+            socket.emit('join_battery', {battery_id: batteryId});
+        }
+    }
+    
+    // バッテリーデータ読み込み
+    async function loadBatteryData(batteryId) {
+        try {
+            const response = await apiCall(`/api/battery/${batteryId}/data?hours=1`);
+            const data = response.data;
+            
+            if (data.length > 0) {
+                // 最新データ表示
+                const latest = data[0];
+                updateCurrentMetrics(latest);
+                
+                // チャート更新
+                updateCharts(data);
+            }
+            
+        } catch (error) {
+            console.error('バッテリーデータ読み込みエラー:', error);
+        }
+    }
+    
+    // 現在のメトリクス更新
+    function updateCurrentMetrics(data) {
+        document.getElementById('currentVoltage').textContent = formatNumber(data.voltage);
+        document.getElementById('currentCurrent').textContent = formatNumber(data.current);
+        document.getElementById('currentTemperature').textContent = formatNumber(data.temperature);
+        document.getElementById('currentCapacity').textContent = formatNumber(data.capacity);
+    }
+    
+    // チャート初期化
+    function initializeCharts() {
+        const chartTypes = ['voltage', 'current', 'temperature', 'capacity'];
+        
+        chartTypes.forEach(type => {
+            const ctx = document.getElementById(`${type}Chart`);
+            if (ctx) {
+                const config = chartConfigs[type];
+                charts[type] = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        datasets: [{
+                            label: config.label,
+                            data: [],
+                            borderColor: config.borderColor,
+                            backgroundColor: config.backgroundColor,
+                            tension: 0.4,
+                            fill: false
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: {
+                                    displayFormats: {
+                                        minute: 'HH:mm',
+                                        hour: 'HH:mm'
+                                    }
+                                }
+                            },
+                            y: {
+                                min: config.yAxisMin,
+                                max: config.yAxisMax
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    }
+    
+    // チャート更新
+    function updateCharts(data) {
+        const chartTypes = ['voltage', 'current', 'temperature', 'capacity'];
+        
+        chartTypes.forEach(type => {
+            if (charts[type]) {
+                const chartData = data.map(item => ({
+                    x: new Date(item.timestamp),
+                    y: item[type]
+                })).reverse(); // 時系列順にソート
+                
+                charts[type].data.datasets[0].data = chartData;
+                charts[type].update('none');
+            }
+        });
+    }
+    
+    // バッテリー予測読み込み
+    async function loadBatteryPrediction(batteryId) {
+        try {
+            const response = await apiCall(`/api/battery/${batteryId}/predict`);
+            updatePredictionDisplay(response);
+            
+        } catch (error) {
+            console.error('予測データ読み込みエラー:', error);
+        }
+    }
+    
+    // 予測結果表示更新
+    function updatePredictionDisplay(data) {
+        const prediction = data.prediction;
+        const container = document.getElementById('predictionContainer');
+        
+        container.innerHTML = `
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="${getRiskLevelIcon(prediction.risk_level)} fa-2x mb-3 text-${getRiskLevelColor(prediction.risk_level)}"></i>
+                            <h5>リスクレベル</h5>
+                            <span class="badge bg-${getRiskLevelColor(prediction.risk_level)} fs-6">
+                                ${prediction.risk_level}
+                            </span>
+                            <div class="mt-2">
+                                <small class="text-muted">信頼度: ${Math.round(prediction.confidence_score * 100)}%</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-heart-pulse fa-2x mb-3 text-success"></i>
+                            <h5>健康スコア</h5>
+                            <div class="h3 text-${getHealthScoreColor(prediction.health_score)}">
+                                ${formatNumber(prediction.health_score)}点
+                            </div>
+                            <div class="progress mt-2" style="height: 8px;">
+                                <div class="progress-bar bg-${getHealthScoreColor(prediction.health_score)}" 
+                                     style="width: ${prediction.health_score}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-clock fa-2x mb-3 text-info"></i>
+                            <h5>残存サイクル</h5>
+                            <div class="h3 text-primary">${prediction.remaining_cycles.toLocaleString()}</div>
+                            <small class="text-muted">
+                                劣化率: ${(prediction.degradation_rate * 100).toFixed(3)}%/日
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6><i class="fas fa-lightbulb me-2"></i>分析結果</h6>
+                            <p class="mb-2">${prediction.explanation}</p>
+                            
+                            ${Object.keys(prediction.anomaly_flags).length > 0 ? `
+                                <div class="mt-3">
+                                    <h6><i class="fas fa-exclamation-triangle me-2"></i>検出された異常</h6>
+                                    <div class="d-flex gap-2 flex-wrap">
+                                        ${Object.entries(prediction.anomaly_flags)
+                                            .filter(([key, value]) => value)
+                                            .map(([key, value]) => `
+                                                <span class="badge bg-warning">${getAnomalyFlagLabel(key)}</span>
+                                            `).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${prediction.predicted_failure_time ? `
+                                <div class="mt-3">
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar-alt me-1"></i>
+                                        予測故障時期: ${formatDateTime(prediction.predicted_failure_time)}
+                                    </small>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // アラート読み込み
+    async function loadAlerts() {
+        try {
+            const response = await apiCall('/api/alerts?status=active&per_page=10');
+            updateAlertsDisplay(response.alerts);
+            
+        } catch (error) {
+            console.error('アラート読み込みエラー:', error);
+        }
+    }
+    
+    // アラート表示更新
+    function updateAlertsDisplay(alerts) {
+        const container = document.getElementById('alertsContainer');
+        
+        if (alerts.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-check-circle fa-3x mb-3"></i>
+                    <p>アクティブなアラートはありません</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = alerts.map(alert => `
+            <div class="alert-item alert-${alert.severity}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="mb-1">
+                            <i class="${getRiskLevelIcon(alert.severity)} me-2"></i>
+                            ${alert.title}
+                        </h6>
+                        <p class="mb-2">${alert.message}</p>
+                        <small class="text-muted">
+                            <i class="fas fa-battery-full me-1"></i>${alert.battery_id} - ${alert.battery_location}
+                            <span class="ms-3">
+                                <i class="fas fa-clock me-1"></i>${formatDateTime(alert.created_at)}
+                            </span>
+                        </small>
+                    </div>
+                    <span class="badge bg-${getRiskLevelColor(alert.severity)}">
+                        ${alert.severity}
+                    </span>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    // リアルタイム更新
+    function updateRealTimeData(sensorData) {
+        // 選択されたバッテリーのデータを更新
+        if (selectedBatteryId) {
+            const batteryData = sensorData.find(data => data.battery_id === selectedBatteryId);
+            if (batteryData) {
+                updateCurrentMetrics(batteryData);
+                
+                // チャートに新しいデータポイント追加
+                updateChartsRealTime(batteryData);
+            }
+        }
+    }
+    
+    // リアルタイムチャート更新
+    function updateChartsRealTime(data) {
+        const chartTypes = ['voltage', 'current', 'temperature', 'capacity'];
+        const newPoint = {
+            x: new Date(data.timestamp),
+            y: null
+        };
+        
+        chartTypes.forEach(type => {
+            if (charts[type]) {
+                newPoint.y = data[type];
+                
+                // 新しいポイント追加
+                charts[type].data.datasets[0].data.push(newPoint);
+                
+                // 古いデータポイント削除（最新100ポイントまで保持）
+                if (charts[type].data.datasets[0].data.length > 100) {
+                    charts[type].data.datasets[0].data.shift();
+                }
+                
+                charts[type].update('none');
+            }
+        });
+    }
+    
+    // 自動更新切り替え
+    function toggleAutoRefresh() {
+        const btn = document.getElementById('autoRefreshBtn');
+        isAutoRefresh = !isAutoRefresh;
+        
+        if (isAutoRefresh) {
+            btn.innerHTML = '<i class="fas fa-pause me-1"></i>自動更新停止';
+            btn.className = 'btn btn-success';
+            autoRefreshInterval = setInterval(loadDashboardData, 30000); // 30秒ごと
+        } else {
+            btn.innerHTML = '<i class="fas fa-play me-1"></i>自動更新';
+            btn.className = 'btn btn-outline-secondary';
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+        }
+    }
+    
+    // リアルタイム更新開始
+    function startRealTimeUpdates() {
+        if (socket) {
+            socket.emit('join_room', 'authenticated');
+        }
+    }
+    
+    // リアルタイム更新停止
+    function stopRealTimeUpdates() {
+        if (socket) {
+            socket.emit('leave_room', 'authenticated');
+        }
+    }
+    
+    // ヘルパー関数
+    function getHealthScoreColor(score) {
+        if (score >= 80) return 'success';
+        if (score >= 60) return 'warning';
+        if (score >= 40) return 'danger';
+        return 'dark';
+    }
+    
+    function getAnomalyFlagLabel(flag) {
+        const labels = {
+            'voltage_anomaly': '電圧異常',
+            'temperature_anomaly': '温度異常',
+            'capacity_anomaly': '容量異常',
+            'voltage_instability': '電圧不安定',
+            'temperature_instability': '温度不安定',
+            'resistance_anomaly': '内部抵抗異常'
+        };
+        return labels[flag] || flag;
+    }
+    
+    function showLoadingSpinner(show) {
+        const refreshBtn = document.getElementById('refreshBtn');
+        if (show) {
+            refreshBtn.innerHTML = '<span class="loading-spinner me-1"></span>読み込み中';
+            refreshBtn.disabled = true;
+        } else {
+            refreshBtn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>更新';
+            refreshBtn.disabled = false;
+        }
+    }
+</script>
+{% endblock %}
