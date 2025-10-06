@@ -91,7 +91,8 @@ def main():
                     host=args.host,
                     port=args.port,
                     debug=args.debug,
-                    use_reloader=False)  # データ収集スレッドとの競合回避
+                    use_reloader=False,  # データ収集スレッドとの競合回避
+                    allow_unsafe_werkzeug=True)  # プロダクション環境で必要
         
     except KeyboardInterrupt:
         logger.info("システム停止中...")

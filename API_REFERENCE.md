@@ -774,5 +774,5 @@ curl -b cookies.txt \
 
 **📅 最終更新**: 2025年10月5日  
 **📖 APIバージョン**: v1.0.0  
-**👨‍💼 作成者**: PFU事業開発本部  
-**📧 サポート**: api-support@pfu.fujitsu.com
+**👨‍💼 作成者**: SMART POWER社 技術開発部  
+**📧 サポート**: api-support@smartpower.com
